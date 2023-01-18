@@ -1,28 +1,29 @@
-void cpuUsage()
-{
-	unsigned numCPUs;
-	float totalCpuUsage;
-	processor_info_array_t cpuInfo;
-	mach_msg_type_number_t numCpuInfo;
-    int mib[2U] = { CTL_HW, HW_NCPU };
-    size_t sizeOfNumCPUs = sizeof(numCPUs);
-    int status = sysctl(mib, 2U, &numCPUs, &sizeOfNumCPUs, NULL, 0U);
-    if(status)
-        numCPUs = 1;
-	std::cout<<"numCPUs:"<<numCPUs<<std::endl;
-	CPUUsageLock = [[NSLock alloc] init];
-	[CPUUsageLock lock];
-	for(unsigned i = 0U; i < numCPUs; ++i) {
-		float inUse, total;
-		inUse = cpuInfo[(CPU_STATE_MAX * i) + CPU_STATE_USER] + cpuInfo[(CPU_STATE_MAX * i) + CPU_STATE_SYSTEM] + cpuInfo[(CPU_STATE_MAX * i) + CPU_STATE_NICE];
-        total = inUse + cpuInfo[(CPU_STATE_MAX * i) + CPU_STATE_IDLE];
-		std::cout<<"inUse:"<<inUse<<std::endl;
-		std::cout<<"total:"<<total<<std::endl;
-		float usagePercentage = inUse / total
-		std::cout<<"usagePercentage:"<<usagePercentage<<std::endl;
-		totalCpuUsage += usagePercentage;
-	}
-	usagePer = totalCpuUsage/numCPUs;
-	std::cout<<"usagePer:"<<usagePer<<std::endl;
-	[CPUUsageLock unlock];
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/sysctl.h>
+#include <iostream>
+int main() {
+    natural_t cpuCount;
+    processor_info_array_t cpuInfo;
+    mach_msg_type_number_t cpuInfoCount;
+    unsigned int i;
+    float cpuLoad = 0;
+
+    // Get the number of CPUs
+    kern_return_t kernError = host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &cpuCount, &cpuInfo, &cpuInfoCount);
+    if (kernError != KERN_SUCCESS) {
+        printf("Error getting CPU count: %d\n", kernError);
+        return -1;
+    }
+
+    // Calculate the CPU load
+    for (i = 0; i < cpuCount; i++) {
+        cpuLoad += cpuInfo[i].cpu_ticks[CPU_STATE_USER] + cpuInfo[i].cpu_ticks[CPU_STATE_NICE] + cpuInfo[i].cpu_ticks[CPU_STATE_SYSTEM];
+    }
+
+    // Deallocate the CPU info
+    vm_deallocate(mach_task_self(), (vm_address_t)cpuInfo, cpuInfoCount * sizeof(natural_t));
+
+    float cpuPer =  (cpuLoad / (float)cpuCount);
+	std::cout<<"cpuPer:::"<<cpuPer<<std::endl;
 }
